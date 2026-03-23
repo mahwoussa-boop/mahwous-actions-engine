@@ -394,7 +394,8 @@ class MahwousEngine:
         fetch_images: bool = False,
     ):
         self.idx = semantic_index
-        self.brands = bran        self.oracle = gemini_oracle
+        self.brands = brands_list
+        self.oracle = gemini_oracle
         self.all_comp_brands = set() # لجمع كل الماركات المستخرجة من المنافسين
         self.search_api_key = search_api_key
         self.search_cx = search_cx
