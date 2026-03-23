@@ -401,8 +401,7 @@ class MahwousEngine:
         self.search_cx = search_cx
         self.fetch_images = fetch_images
         self.new_brands_to_add = set() # لجمع الماركات الجديدة التي لم يتم العثور عليها في ملفنا
-        self.llm_client = OpenAI() if self.oracle else None # تهيئة LLM client بناءً على وجود oraclen:
-            pass
+        self.llm_client = OpenAI() if self.oracle else None # تهيئة LLM client بناءً على وجود oracle
 
     def _llm_batch_verify(self, batch: list[MatchResult]) -> list[str]:
         """Verifies a batch of 20 products via LLM with Retry Logic and Error Handling."""
