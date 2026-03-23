@@ -1,97 +1,86 @@
-# Complete Mahwous Hybrid Semantic Engine v8.0
-
 import pandas as pd
-import numpy as np
-import csv
-# Include other necessary imports
+import io
 
-class ProductFeatures:
-    def __init__(self):
-        # initialization code
-        pass
-
-class MatchResult:
-    def __init__(self):
-        # initialization code
-        pass
-
-class FeatureParser:
-    @staticmethod
-    def parse(features):
-        # parsing code
-        pass
-
-class GoldenMatchEngine:
-    def __init__(self):
-        # initialization code
-        pass
-
-class ReverseLookup:
-    def __init__(self):
-        # initialization code
-        pass
-
-class MahwousEngine:
-    def __init__(self):
-        # initialization code
-        pass
-
-class SemanticIndex:
-    def __init__(self):
-        # initialization code
-        pass
-
-class GeminiOracle:
-    def __init__(self):
-        # initialization code
-        pass
+def load_store_products(files: list) -> pd.DataFrame:
+    """Load store products from CSV/Excel files."""
+    frames = []
+    for f in files:
+        try:
+            if str(f).endswith('.csv'):
+                df = pd.read_csv(f, encoding='utf-8')
+            elif str(f).endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(f)
+            else:
+                continue
+            frames.append(df)
+        except Exception as e:
+            print(f"Error reading {f}: {e}")
+    
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
-def _read_csv(file_path):
-    data = pd.read_csv(file_path)
-    return data
+def load_competitor_products(files: list) -> pd.DataFrame:
+    """Load competitor products from CSV/Excel files."""
+    frames = []
+    for f in files:
+        try:
+            if str(f).endswith('.csv'):
+                df = pd.read_csv(f, encoding='utf-8')
+            elif str(f).endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(f)
+            else:
+                continue
+            frames.append(df)
+        except Exception as e:
+            print(f"Error reading {f}: {e}")
+    
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
-def _read_excel(file_path):
-    data = pd.read_excel(file_path)
-    return data
+def load_brands(file: str) -> list:
+    """Load brands from CSV/Excel file."""
+    try:
+        if str(file).endswith('.csv'):
+            df = pd.read_csv(file, encoding='utf-8')
+        elif str(file).endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(file)
+        else:
+            return []
+        
+        # Get brand column
+        brand_col = next((c for c in df.columns if 'brand' in c.lower()), df.columns[0])
+        return df[brand_col].dropna().astype(str).tolist()
+    except Exception as e:
+        print(f"Error loading brands: {e}")
+        return []
 
 
-def _read_file(file_path):
-    with open(file_path, 'r') as file:
-        return file.read()
+def export_salla_csv(results: list) -> bytes:
+    """Export results as Salla-compatible CSV."""
+    if not results:
+        return b""
+    
+    rows = []
+    for r in results:
+        rows.append({
+            'product_name': getattr(r, 'comp_name', ''),
+            'price': getattr(r, 'comp_price', ''),
+            'image': getattr(r, 'comp_image', ''),
+        })
+    
+    df = pd.DataFrame(rows)
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding='utf-8')
+    return buf.getvalue().encode('utf-8')
 
 
-def load_store_products():
-    # code to load store products
-    pass
-
-
-def load_competitor_products():
-    # code to load competitor products
-    pass
-
-
-def load_brands():
-    # code to load brands
-    pass
-
-
-def export_salla_csv(data):
-    data.to_csv('exported_data.csv', index=False)
-
-
-def export_brands_csv(brands):
-    with open('brands.csv', 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerows(brands)
-
-
-def _generate_product_description_with_llm(product):
-    # code to generate product description
-    pass
-
-
-def _generate_brand_description_with_llm(brand):
-    # code to generate brand description
-    pass
+def export_brands_csv(brands: list) -> bytes:
+    """Export brands as CSV."""
+    if not brands:
+        return b""
+    
+    rows = [{'brand': b} for b in brands]
+    df = pd.DataFrame(rows)
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding='utf-8')
+    return buf.getvalue().encode('utf-8')
