@@ -214,7 +214,7 @@ def main():
         f"| 🔍 مراجعة يدوية | {len(reviews):,} |",
         f"| 🆕 ماركات جديدة | {len(new_brands):,} |",
         f"| ⏱️ وقت التشغيل | {elapsed:.1f} ثانية |",
-        f"| 🤖 الذكاء الاصطناعي | {"نشط" if oracle else "غير مفعّل"} |",
+        f"| 🤖 الذكاء الاصطناعي | {'نشط' if oracle else 'غير مفعّل'} |",
     ]
     (OUTPUT_DIR / "summary.txt").write_text("\n".join(summary_lines), encoding="utf-8")
 
