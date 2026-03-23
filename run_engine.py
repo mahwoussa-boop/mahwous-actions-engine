@@ -136,7 +136,7 @@ def main():
         gemini_oracle=oracle,
     )
 
-    new_opps, duplicates, reviews = engine.run(
+    new_opps, duplicates, reviews, new_brands = engine.run(
         store_df    = store_df,
         comp_df     = comp_df,
         use_llm     = USE_LLM and oracle is not None,
@@ -193,6 +193,13 @@ def main():
         df_rev.to_csv(OUTPUT_DIR / f"مراجعة_يدوية_{date_str}.csv", index=False, encoding="utf-8-sig")
         log.info(f"💾 مراجعة يدوية: {len(reviews):,} منتج")
 
+    # ملف الماركات الجديدة
+    if new_brands:
+        brands_bytes = export_brands_csv(new_brands)
+        brands_path  = OUTPUT_DIR / f"ماركات_جديدة_مطلوبة_{date_str}.csv"
+        brands_path.write_bytes(brands_bytes)
+        log.info(f"💾 ماركات جديدة: {len(new_brands):,} ماركة")
+
     # ملف الملخص لواجهة GitHub
     summary_lines = [
         f"| المقياس | القيمة |",
@@ -203,8 +210,9 @@ def main():
         f"| 🌟 **فرص جديدة** | **{len(new_opps):,}** |",
         f"| 🚫 مكررات محظورة | {len(duplicates):,} |",
         f"| 🔍 مراجعة يدوية | {len(reviews):,} |",
+        f"| 🆕 ماركات جديدة | {len(new_brands):,} |",
         f"| ⏱️ وقت التشغيل | {elapsed:.1f} ثانية |",
-        f"| 🤖 الذكاء الاصطناعي | {'✅ نشط' if oracle else '⚠️ غير مفعّل'} |",
+        f"| 🤖 الذكاء الاصطناعي | {"✅ نشط" if oracle else "⚠️ غير مفعّل"} |",
     ]
     (OUTPUT_DIR / "summary.txt").write_text("\n".join(summary_lines), encoding="utf-8")
 

@@ -92,6 +92,7 @@ class MatchResult:
     llm_reasoning:    str   = ""
     product_type:     str   = "perfume"
     brand:            str   = ""
+    comp_brand_raw:   str   = "" # الماركة المستخرجة من منتج المنافس
     salla_category:   str   = ""
 
 
@@ -158,13 +159,32 @@ class FeatureParser:
 
     @staticmethod
     def _extract_brand(name_lower: str, brands: list[str]) -> tuple[str, str]:
-        for b in brands:
-            parts = [p.strip().lower() for p in b.split('|')]
-            for p in parts:
-                if p and len(p) > 2 and p in name_lower:
-                    orig = [o.strip() for o in b.split('|')]
-                    return (orig[0] if len(orig)>0 else ""), (orig[1] if len(orig)>1 else "")
-        return "", ""
+        best_match_ar, best_match_en = "", ""
+        best_score = 0
+
+        for b_entry in brands:
+            # b_entry can be 'العربية | English' or just 'العربية'
+            parts = [p.strip() for p in b_entry.split("|")]
+            brand_ar = parts[0] if len(parts) > 0 else ""
+            brand_en = parts[1] if len(parts) > 1 else ""
+
+            # Try matching Arabic brand name
+            if brand_ar:
+                score_ar = rfuzz.partial_ratio(brand_ar.lower(), name_lower)
+                if score_ar > best_score and score_ar > 80: # Threshold for partial match
+                    best_score = score_ar
+                    best_match_ar = brand_ar
+                    best_match_en = brand_en
+            
+            # Try matching English brand name
+            if brand_en:
+                score_en = rfuzz.partial_ratio(brand_en.lower(), name_lower)
+                if score_en > best_score and score_en > 80: # Threshold for partial match
+                    best_score = score_en
+                    best_match_ar = brand_ar
+                    best_match_en = brand_en
+
+        return best_match_ar, best_match_en
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -271,7 +291,8 @@ class MahwousEngine:
     ):
         self.idx = semantic_index
         self.brands = brands_list
-        self.gemini_oracle = gemini_oracle
+        self.oracle = gemini_oracle
+        self.all_comp_brands = set() # لجمع كل الماركات المستخرجة من المنافسين
         self.search_api_key = search_api_key
         self.search_cx = search_cx
         self.fetch_images = fetch_images
@@ -337,6 +358,11 @@ class MahwousEngine:
             
             # 1. Parsing & Exclusion (Samples < 10ml)
             comp_feat = FeatureParser.parse(comp_name, brands_list=self.brands)
+            
+            # جمع الماركات المستخرجة من منتجات المنافسين
+            if comp_feat.brand_ar: self.all_comp_brands.add(comp_feat.brand_ar)
+            elif comp_feat.brand_en: self.all_comp_brands.add(comp_feat.brand_en)
+
             if comp_feat.volume_ml > 0 and comp_feat.volume_ml < MIN_VOLUME_ML:
                 continue # Skip small samples as requested
                 
@@ -393,7 +419,11 @@ class MahwousEngine:
                         final_revs.append(res)
             reviews = final_revs
                 
-        return new_opps, duplicates, reviews
+        # استخراج الماركات الجديدة
+        known_brands_lower = {b.lower() for b in self.brands}
+        new_brands = [b for b in self.all_comp_brands if b.lower() not in known_brands_lower]
+
+        return new_opps, duplicates, reviews, new_brands
 
 # (Keep helper functions _read_csv, load_store_products, load_competitor_products, SemanticIndex as before)
 # ... [rest of the file remains same as previous patched version]
