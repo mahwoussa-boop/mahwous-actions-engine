@@ -408,23 +408,45 @@ def _read_csv(file_obj, **kwargs) -> pd.DataFrame:
         if isinstance(raw, str): raw = raw.encode("utf-8")
     else:
         with open(file_obj, "rb") as fh: raw = fh.read()
+    # Try different encodings and delimiters
     for enc in ("utf-8-sig", "utf-8", "cp1256", "latin-1"):
-        try: return pd.read_csv(io.BytesIO(raw), encoding=enc, **kwargs)
-        except: continue
-    raise ValueError("Cannot decode CSV")
+        for sep in (",", ";", "\t"):
+            try:
+                return pd.read_csv(io.BytesIO(raw), encoding=enc, sep=sep, **kwargs)
+            except Exception:
+                continue
+    raise ValueError("Cannot decode CSV with common encodings/delimiters")
+
+def _read_excel(file_obj) -> pd.DataFrame:
+    return pd.read_excel(file_obj)
+
+def _read_file(file_path) -> pd.DataFrame:
+    if str(file_path).lower().endswith(".csv"):
+        return _read_csv(file_path)
+    elif str(file_path).lower().endswith(".xlsx"):
+        return _read_excel(file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {file_path}")
 
 def load_store_products(files: list) -> pd.DataFrame:
     frames = []
     for f in files:
         try:
-            raw_df = _read_csv(f, header=None, low_memory=False, dtype=str)
-            hrow = None
+            raw_df = _read_file(f)
+            # البحث عن رأس الملف (header) بشكل مرن
+            header_row_index = -1
             for i, row in raw_df.iterrows():
                 if any("أسم المنتج" in str(v) or "اسم المنتج" in str(v) for v in row.values):
-                    hrow = i; break
-            if hrow is None: continue
-            raw_df.columns = [str(c).strip() for c in raw_df.iloc[hrow].values]
-            data = raw_df.iloc[hrow + 1:].reset_index(drop=True)
+                    header_row_index = i
+                    break
+            
+            if header_row_index == -1:
+                log.warning(f"لم يتم العثور على رأس الملف (أسم المنتج/اسم المنتج) في {getattr(f, 'name', str(f))}")
+                continue
+
+            # تعيين رأس الملف الجديد والبدء من الصف التالي
+            raw_df.columns = [str(c).strip() for c in raw_df.iloc[header_row_index].values]
+            data = raw_df.iloc[header_row_index + 1:].reset_index(drop=True)
             def _c(kw: str) -> Optional[str]:
                 return next((c for c in data.columns if kw in c), None)
             frame = pd.DataFrame()
@@ -438,7 +460,7 @@ def load_competitor_products(files: list) -> pd.DataFrame:
     frames = []
     for f in files:
         try:
-            df = _read_csv(f, low_memory=False, dtype=str)
+            df = _read_file(f)
             df.columns = [str(c).strip() for c in df.columns]
             # البحث الشامل عن عمود الاسم في ملفات المنافسين بأي صيغة
             name_keywords = ["name", "اسم", "productcard", "product", "title", "عنوان", "منتج", "المنتج"]
@@ -478,7 +500,7 @@ def load_competitor_products(files: list) -> pd.DataFrame:
 
 def load_brands(file) -> list[str]:
     try:
-        df = _read_csv(file, dtype=str)
+        df = _read_file(file)
         col = next((c for c in df.columns if "اسم" in str(c)), df.columns[0])
         return df[col].dropna().astype(str).tolist()
     except: return []
