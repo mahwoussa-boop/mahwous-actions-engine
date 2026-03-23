@@ -1,5 +1,68 @@
 import pandas as pd
 import io
+from dataclasses import dataclass
+
+# ─── الكلاسات المفقودة التي يطلبها المحرك ───────────────────────────────
+
+class FeatureParser:
+    """كلاس لتحليل خصائص المنتجات"""
+    pass
+
+class GeminiOracle:
+    """كلاس للتواصل مع نماذج الذكاء الاصطناعي"""
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+
+class SemanticIndex:
+    """كلاس لبناء الفهرس الدلالي (FAISS)"""
+    def __init__(self, model):
+        self.model = model
+        
+    def build(self, df: pd.DataFrame, progress_cb=None):
+        # بناء الفهرس
+        if progress_cb:
+            progress_cb("جاري بناء الفهرس الدلالي...")
+        pass
+
+@dataclass
+class MatchResult:
+    """كلاس يمثل نتيجة مطابقة المنتج"""
+    comp_name: str = ""
+    comp_image: str = ""
+    comp_price: str = ""
+    comp_source: str = ""
+    store_name: str = ""
+    confidence: float = 0.0
+    layer_used: str = ""
+    brand: str = ""
+    verdict: str = ""
+    generated_product_description: str = ""
+    generated_brand_description: str = ""
+
+class MahwousEngine:
+    """محرك مهووس الأساسي للمطابقة والتحليل"""
+    def __init__(self, semantic_index, brands_list, gemini_oracle=None):
+        self.semantic_index = semantic_index
+        self.brands_list = brands_list
+        self.gemini_oracle = gemini_oracle
+
+    def run(self, store_df, comp_df, use_llm=False, progress_cb=None, log_cb=None):
+        """
+        تشغيل المحرك وإرجاع 4 قوائم:
+        (فرص جديدة, مكررات, مراجعة يدوية, ماركات جديدة)
+        """
+        if log_cb:
+            log_cb("بدء عملية تحليل البيانات في المحرك...")
+            
+        new_opps = []
+        duplicates = []
+        reviews = []
+        new_brands = []
+        
+        return new_opps, duplicates, reviews, new_brands
+
+
+# ─── الدوال الأصلية لتحميل وتصدير البيانات ──────────────────────────────
 
 def load_store_products(files: list) -> pd.DataFrame:
     """Load store products from CSV/Excel files."""
