@@ -58,6 +58,106 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s │ %(message)s")
 MIN_VOLUME_ML = 10.0  # استبعاد العينات أقل من 10 مل
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  LLM-Powered Content Generation
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _generate_product_description_with_llm(
+    llm_client,
+    product_name: str,
+    brand: str,
+    price: str,
+    internal_links: dict = None,
+    fragrantica_url: str = "",
+) -> str:
+    # Placeholder for actual LLM prompt based on the expert document
+    # This prompt needs to be carefully crafted to meet all SEO and style requirements
+    # For now, a simplified prompt to get started.
+    prompt = f"""أنت خبير عالمي في كتابة أوصاف منتجات العطور محسّنة لمحركات البحث التقليدية (Google SEO) ومحركات بحث الذكاء الصناعي (GEO/AIO). تعمل حصرياً لمتجر "مهووس" (Mahwous) - الوجهة الأولى للعطور الفاخرة والنادرة. مهمتك هي كتابة وصف منتج احترافي وجذاب لمنتج جديد، مع الالتزام الصارم بالمعايير التالية:
+
+**اسم المنتج:** {product_name}
+**الماركة:** {brand}
+**السعر:** {price} ريال سعودي
+
+**التعليمات:**
+1.  **الطول:** 1200-1500 كلمة.
+2.  **البنية:** 9 أقسام رئيسية (مقدمة، نبذة عن العطر، مكونات العطر، قصة العطر، لمسة خبير من مهووس، متى وأين ترتدي، أسئلة متكررة (FAQ)، روابط داخلية وخارجية، خاتمة).
+3.  **الكلمات المفتاحية (SEO):**
+    *   الكلمة الرئيسية (اسم المنتج) في H1، وأول 50 كلمة، وآخر 100 كلمة، وتكرار 5-7 مرات.
+    *   3 كلمات ثانوية (تكرار 3-5 مرات لكل منها).
+    *   10-15 كلمة دلالية (تكرار 2-3 مرات لكل منها).
+    *   5-8 عبارات حوارية في FAQ.
+4.  **الروابط:** 3-5 روابط داخلية (إذا توفرت) ورابط خارجي واحد (Fragrantica).
+5.  **الأسلوب:** مزيج من الراقي، الودود، العاطفي، والتسويقي. لا تستخدم الإيموجي. استخدم Bold للكلمات المهمة (بدون مبالغة). ضمن أرقام وإحصائيات إن أمكن.
+6.  **المصادر:** استخدم Fragrantica Arabia و Google للبحث عن معلومات دقيقة حول العطر.
+7.  **التنسيق النهائي:** يجب أن يكون جاهزاً للنسخ واللصق مباشرة بصيغة Markdown، ومنظماً بالترتيب المذكور أعلاه.
+
+**مثال على الروابط الداخلية (إذا توفرت):**
+{internal_links}
+
+**رابط Fragrantica (إذا توفر):**
+{fragrantica_url}
+
+**الآن، اكتب الوصف الكامل لـ {product_name}:**
+"""
+    try:
+        response = llm_client.chat.completions.create(
+            model="gemini-1.5-flash", # أو gpt-4.1-mini حسب التوفر
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2000, # لضمان طول الوصف المطلوب
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        log.error(f"فشل توليد وصف المنتج بواسطة LLM: {e}")
+        return ""
+
+def _generate_brand_description_with_llm(
+    llm_client,
+    brand_name_ar: str,
+    brand_name_en: str,
+) -> str:
+    # بناء اسم الماركة الموحد مع مراعاة حد الـ 30 حرفاً
+    combined_brand_name = f"{brand_name_ar} | {brand_name_en}"
+    if len(combined_brand_name) > 30:
+        # محاولة اختصار الاسم الإنجليزي إذا كان الاسم العربي طويلاً
+        if len(brand_name_ar) < 25: # ترك مساحة لـ | و EN
+            brand_name_en_short = brand_name_en[:(30 - len(brand_name_ar) - 3)] # -3 for ' | '
+            combined_brand_name = f"{brand_name_ar} | {brand_name_en_short}"
+        else:
+            combined_brand_name = brand_name_ar[:27] + "..." # قص الاسم العربي إذا كان طويلاً جداً
+
+    prompt = f"""أنت خبير في كتابة أوصاف الماركات لمتجر مهووس. مهمتك هي كتابة وصف موجز وجذاب للماركة التالية، مع الالتزام بالمعايير:
+
+**اسم الماركة بالعربية:** {brand_name_ar}
+**اسم الماركة بالإنجليزية:** {brand_name_en}
+**اسم الماركة الموحد (عربي | إنجليزي، بحد أقصى 30 حرفاً):** {combined_brand_name}
+
+**التعليمات:**
+1.  **الطول:** 50-100 كلمة.
+2.  **الأسلوب:** احترافي، موجز، يعكس هوية الماركة، ومناسب لمتجر مهووس.
+3.  **التركيز:** أبرز تاريخ الماركة، فلسفتها، وأهم ما يميزها في عالم العطور. اذكر أي تفاصيل فريدة أو إنجازات.
+4.  **المصادر:** استخدم معلومات عامة موثوقة عن الماركة.
+5.  **التنسيق:** نص عادي، بدون Markdown أو عناوين. يجب أن يكون جاهزاً للنسخ واللصق.
+
+**الآن، اكتب الوصف الكامل للماركة {brand_name_ar}:**
+"""
+    try:
+        response = llm_client.chat.completions.create(
+            model="gemini-1.5-flash",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        log.error(f"فشل توليد وصف الماركة بواسطة LLM: {e}")
+        return ""
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  DATA CLASSES
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -92,8 +192,12 @@ class MatchResult:
     llm_reasoning:    str   = ""
     product_type:     str   = "perfume"
     brand:            str   = ""
+    brand_ar:         str   = ""
+    brand_en:         str   = ""
     comp_brand_raw:   str   = "" # الماركة المستخرجة من منتج المنافس
     salla_category:   str   = ""
+    generated_product_description: str = ""
+    generated_brand_description:   str = ""
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -290,18 +394,13 @@ class MahwousEngine:
         fetch_images: bool = False,
     ):
         self.idx = semantic_index
-        self.brands = brands_list
-        self.oracle = gemini_oracle
+        self.brands = bran        self.oracle = gemini_oracle
         self.all_comp_brands = set() # لجمع كل الماركات المستخرجة من المنافسين
         self.search_api_key = search_api_key
         self.search_cx = search_cx
         self.fetch_images = fetch_images
-        self.llm_client = None
-        try:
-            import os
-            from openai import OpenAI
-            self.llm_client = OpenAI()
-        except Exception:
+        self.new_brands_to_add = set() # لجمع الماركات الجديدة التي لم يتم العثور عليها في ملفنا
+        self.llm_client = OpenAI() if self.oracle else None # تهيئة LLM client بناءً على وجود oraclen:
             pass
 
     def _llm_batch_verify(self, batch: list[MatchResult]) -> list[str]:
@@ -380,8 +479,31 @@ class MahwousEngine:
                 comp_name=comp_name, comp_image=comp_img, 
                 comp_price=str(row.get("price","")), comp_source=str(row.get("source_file","")),
                 store_name=best_store, store_image=best_store_img,
-                confidence=best_score, brand=comp_feat.brand_ar or comp_feat.brand_en
+                confidence=best_score, 
+                brand=comp_feat.brand_ar or comp_feat.brand_en,
+                brand_ar=comp_feat.brand_ar,
+                brand_en=comp_feat.brand_en,
+                comp_brand_raw=comp_feat.brand_ar or comp_feat.brand_en
             )
+
+            # توليد وصف المنتج والماركة للفرص الجديدة
+            if result.verdict == "new" and self.oracle:
+                # Placeholder for internal links and fragrantica URL
+                internal_links = {}
+                fragrantica_url = ""
+                result.generated_product_description = _generate_product_description_with_llm(
+                    self.llm_client, result.comp_name, result.brand, result.comp_price,
+                    internal_links, fragrantica_url
+                )
+                # توليد وصف الماركة فقط إذا كانت ماركة جديدة
+                if result.comp_brand_raw and result.comp_brand_raw not in self.brands:
+                    # محاولة استخراج الاسم الإنجليزي للماركة من اسم المنتج أو البحث عنه
+                    # For now, we'll use a placeholder or try to infer from comp_brand_raw
+                    # This part needs further refinement for accurate English brand name extraction
+                    brand_name_en_for_llm = result.brand_en if result.brand_en else ""
+                    result.generated_brand_description = _generate_brand_description_with_llm(
+                        self.llm_client, result.comp_brand_raw, brand_name_en_for_llm
+                    )
 
             # 3. Decision Logic based on Golden Score
             if best_score >= 0.88:
@@ -545,7 +667,53 @@ class SemanticIndex:
 
 def export_salla_csv(results: list[MatchResult]) -> bytes:
     cols = ["النوع ","أسم المنتج","تصنيف المنتج","صورة المنتج","وصف صورة المنتج","نوع المنتج","سعر المنتج","الوصف","هل يتطلب شحن؟","رمز المنتج sku","سعر التكلفة","السعر المخفض","تاريخ بداية التخفيض","تاريخ نهاية التخفيض","اقصي كمية لكل عميل","إخفاء خيار تحديد الكمية","اضافة صورة عند الطلب","الوزن","وحدة الوزن","الماركة","العنوان الترويجي","تثبيت المنتج","الباركود","السعرات الحرارية","MPN","GTIN","خاضع للضريبة ؟","سبب عدم الخضوع للضريبة","[1] الاسم","[1] النوع","[1] القيمة","[1] الصورة / اللون","[2] الاسم","[2] النوع","[2] القيمة","[2] الصورة / اللون","[3] الاسم","[3] النوع","[3] القيمة","[3] الصورة / اللون"]
-    rows = [{"النوع ": "منتج", "أسم المنتج": r.comp_name, "تصنيف المنتج": "العطور", "صورة المنتج": r.comp_image, "وصف صورة المنتج": r.comp_name, "نوع المنتج": "منتج جاهز", "سعر المنتج": r.comp_price, "الوصف": f"<p>{r.comp_name}</p>", "هل يتطلب شحن؟": "نعم", "الوزن": "0.5", "وحدة الوزن": "kg", "الماركة": r.brand} for r in results]
+    rows = []
+    for r in results:
+        # بناء اسم الماركة الموحد مع مراعاة حد الـ 30 حرفاً
+        brand_ar = r.brand_ar if r.brand_ar else r.comp_brand_raw
+        brand_en = r.brand_en if r.brand_en else ""
+        combined_brand_name = f"{brand_ar} | {brand_en}"
+        if len(combined_brand_name) > 30:
+            if len(brand_ar) < 25:
+                brand_en_short = brand_en[:(30 - len(brand_ar) - 3)]
+                combined_brand_name = f"{brand_ar} | {brand_en_short}"
+            else:
+                combined_brand_name = brand_ar[:27] + "..."
+
+        rows.append({
+            "النوع ": "منتج",
+            "أسم المنتج": r.comp_name,
+            "تصنيف المنتج": "العطور",
+            "صورة المنتج": r.comp_image,
+            "وصف صورة المنتج": r.comp_name,
+            "نوع المنتج": "منتج جاهز",
+            "سعر المنتج": r.comp_price,
+            "الوصف": r.generated_product_description, # استخدام الوصف الذي تم توليده بواسطة LLM
+            "هل يتطلب شحن؟": "نعم",
+            "الوزن": "0.5",
+            "وحدة الوزن": "kg",
+            "الماركة": combined_brand_name, # استخدام اسم الماركة الموحد
+            "العنوان الترويجي": f"{r.comp_name} | {combined_brand_name} - مهووس العطور", # SEO Title
+            "تثبيت المنتج": "",
+            "الباركود": r.gtin, # استخدام GTIN المستخرج
+            "السعرات الحرارية": "",
+            "MPN": "",
+            "GTIN": r.gtin,
+            "خاضع للضريبة ؟": "نعم",
+            "سبب عدم الخضوع للضريبة": "",
+            "[1] الاسم": "",
+            "[1] النوع": "",
+            "[1] القيمة": "",
+            "[1] الصورة / اللون": "",
+            "[2] الاسم": "",
+            "[2] النوع": "",
+            "[2] القيمة": "",
+            "[2] الصورة / اللون": "",
+            "[3] الاسم": "",
+            "[3] النوع": "",
+            "[3] القيمة": "",
+            "[3] الصورة / اللون": "",
+        })
     df = pd.DataFrame(rows, columns=cols)
     buf = io.StringIO()
     buf.write("بيانات المنتج" + "," * (len(cols) - 1) + "\n")
@@ -599,9 +767,35 @@ class GeminiOracle:
         return "review"
 
 
-def export_brands_csv(brands: list[str]) -> bytes:
-    """Export brands list as a UTF-8 CSV file."""
-    df = pd.DataFrame({"اسم الماركة": brands})
+def export_brands_csv(new_brand_results: list[MatchResult]) -> bytes:
+    """Export new brands list as a UTF-8 CSV file in Mahwous format."""
+    rows = []
+    for r in new_brand_results:
+        brand_ar = r.brand_ar if r.brand_ar else r.comp_brand_raw # استخدام comp_brand_raw كاحتياطي
+        brand_en = r.brand_en if r.brand_en else ""
+
+        # بناء اسم الماركة الموحد مع مراعاة حد الـ 30 حرفاً
+        combined_brand_name = f"{brand_ar} | {brand_en}"
+        if len(combined_brand_name) > 30:
+            if len(brand_ar) < 25: # ترك مساحة لـ | و EN
+                brand_en_short = brand_en[:(30 - len(brand_ar) - 3)] # -3 for ' | '
+                combined_brand_name = f"{brand_ar} | {brand_en_short}"
+            else:
+                combined_brand_name = brand_ar[:27] + "..." # قص الاسم العربي إذا كان طويلاً جداً
+        
+        rows.append({
+            "اسم الماركة": combined_brand_name,
+            "وصف مختصر عن الماركة": r.generated_brand_description,
+            "صورة شعار الماركة": "", # لا يمكن توليدها حالياً
+            "(إختياري) صورة البانر": "",
+            "(Page Title) عنوان صفحة العلامة التجارية": f"{brand_ar} | {brand_en} - مهووس العطور",
+            "(SEO Page URL) رابط صفحة العلامة التجارية": f"ماركة-{brand_ar.replace(" ", "-")}", # Placeholder slug
+            "(Page Description) وصف صفحة العلامة التجارية": r.generated_brand_description,
+        })
+    
+    cols = ["اسم الماركة","وصف مختصر عن الماركة","صورة شعار الماركة","(إختياري) صورة البانر","(Page Title) عنوان صفحة العلامة التجارية","(SEO Page URL) رابط صفحة العلامة التجارية","(Page Description) وصف صفحة العلامة التجارية"]
+    df = pd.DataFrame(rows, columns=cols)
     buf = io.StringIO()
+    buf.write("\ufeff") # Add BOM for UTF-8 compatibility with Excel
     df.to_csv(buf, index=False, encoding="utf-8")
-    return ("\ufeff" + buf.getvalue()).encode("utf-8")
+    return buf.getvalue().encode("utf-8")

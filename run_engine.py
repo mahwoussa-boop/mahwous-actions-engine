@@ -176,6 +176,8 @@ def main():
             "الطبقة المستخدمة":  r.layer_used,
             "الماركة":           r.brand,
             "القرار":            r.verdict,
+            "وصف المنتج (LLM)":  r.generated_product_description,
+            "وصف الماركة (LLM)": r.generated_brand_description,
         } for r in results])
 
     if new_opps:
