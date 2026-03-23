@@ -433,25 +433,16 @@ def load_store_products(files: list) -> pd.DataFrame:
     for f in files:
         try:
             raw_df = _read_file(f)
-            # البحث عن رأس الملف (header) بشكل مرن
-            header_row_index = -1
-            for i, row in raw_df.iterrows():
-                if any("أسم المنتج" in str(v) or "اسم المنتج" in str(v) for v in row.values):
-                    header_row_index = i
-                    break
-            
-            if header_row_index == -1:
-                log.warning(f"لم يتم العثور على رأس الملف (أسم المنتج/اسم المنتج) في {getattr(f, 'name', str(f))}")
+            # إذا لم يتم العثور على رأس، افترض الترتيب القياسي للملفات التي لا تحتوي على رأس
+            # الترتيب المتوقع: [ID, Product Name, Image URL, Price, ...]
+            if len(raw_df.columns) >= 3:
+                frame = pd.DataFrame()
+                frame["product_name"] = raw_df.iloc[:, 1].fillna("").astype(str) # العمود الثاني (فهرس 1) هو اسم المنتج
+                frame["image_url"] = raw_df.iloc[:, 2].apply(lambda x: str(x).split(",")[0].strip() if pd.notna(x) else "") # العمود الثالث (فهرس 2) هو رابط الصورة
+                # لا نحتاج إلى السعر أو ID حالياً للمحرك، فقط الاسم والصورة
+            else:
+                log.warning(f"الملف {getattr(f, 'name', str(f))} لا يحتوي على عدد كافٍ من الأعمدة المتوقعة.")
                 continue
-
-            # تعيين رأس الملف الجديد والبدء من الصف التالي
-            raw_df.columns = [str(c).strip() for c in raw_df.iloc[header_row_index].values]
-            data = raw_df.iloc[header_row_index + 1:].reset_index(drop=True)
-            def _c(kw: str) -> Optional[str]:
-                return next((c for c in data.columns if kw in c), None)
-            frame = pd.DataFrame()
-            frame["product_name"] = data[_c("أسم المنتج")].fillna("").astype(str)
-            frame["image_url"] = data[_c("صورة المنتج")].apply(lambda x: str(x).split(",")[0].strip() if pd.notna(x) else "") if _c("صورة المنتج") else ""
             frames.append(frame[frame["product_name"].str.strip() != ""])
         except Exception as e: log.error(f"load_store: {e}")
     return pd.concat(frames, ignore_index=True).drop_duplicates(subset=["product_name"]).reset_index(drop=True) if frames else pd.DataFrame()
