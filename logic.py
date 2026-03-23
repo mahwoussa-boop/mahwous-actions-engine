@@ -20,6 +20,7 @@ import logging
 import re
 import threading
 import time
+from openai import OpenAI
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
