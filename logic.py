@@ -93,6 +93,10 @@ def load_competitor_products(files: list) -> pd.DataFrame:
                 df = pd.read_excel(f)
             else:
                 continue
+                
+            # السطر الجديد: إضافة اسم الملف كعمود حتى يتعرف عليه run_engine.py
+            df['source_file'] = str(f)
+            
             frames.append(df)
         except Exception as e:
             print(f"Error reading {f}: {e}")
