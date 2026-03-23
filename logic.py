@@ -198,7 +198,8 @@ class MatchResult:
     comp_brand_raw:   str   = "" # الماركة المستخرجة من منتج المنافس
     salla_category:   str   = ""
     generated_product_description: str = ""
-    generated_brand_description:   str = ""
+    generated_brand_description: str = ""
+    gtin:             str   = ""
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -484,7 +485,8 @@ class MahwousEngine:
                 brand=comp_feat.brand_ar or comp_feat.brand_en,
                 brand_ar=comp_feat.brand_ar,
                 brand_en=comp_feat.brand_en,
-                comp_brand_raw=comp_feat.brand_ar or comp_feat.brand_en
+                comp_brand_raw=comp_feat.brand_ar or comp_feat.brand_en,
+                gtin=str(row.get("barcode", "")) or str(row.get("gtin", ""))
             )
 
             # توليد وصف المنتج والماركة للفرص الجديدة
