@@ -789,7 +789,7 @@ def export_brands_csv(new_brand_results: list[MatchResult]) -> bytes:
             "صورة شعار الماركة": "", # لا يمكن توليدها حالياً
             "(إختياري) صورة البانر": "",
             "(Page Title) عنوان صفحة العلامة التجارية": f"{brand_ar} | {brand_en} - مهووس العطور",
-            "(SEO Page URL) رابط صفحة العلامة التجارية": f"ماركة-{brand_ar.replace(" ", "-")}", # Placeholder slug
+            "(SEO Page URL) رابط صفحة العلامة التجارية": f"ماركة-{brand_ar.replace(' ', '-')}", # Placeholder slug
             "(Page Description) وصف صفحة العلامة التجارية": r.generated_brand_description,
         })
     
