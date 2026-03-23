@@ -402,7 +402,7 @@ class MahwousEngine:
 #  HELPERS (Re-included for completeness)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _read_csv(file_obj, **kwargs) -> pd.DataFrame:
+def _read_csv(file_obj, header: int | None = 0, **kwargs) -> pd.DataFrame:
     if hasattr(file_obj, "read"):
         raw = file_obj.read()
         if isinstance(raw, str): raw = raw.encode("utf-8")
@@ -412,19 +412,19 @@ def _read_csv(file_obj, **kwargs) -> pd.DataFrame:
     for enc in ("utf-8-sig", "utf-8", "cp1256", "latin-1"):
         for sep in (",", ";", "\t"):
             try:
-                return pd.read_csv(io.BytesIO(raw), encoding=enc, sep=sep, **kwargs)
+                return pd.read_csv(io.BytesIO(raw), encoding=enc, header=header, **kwargs)
             except Exception:
                 continue
     raise ValueError("Cannot decode CSV with common encodings/delimiters")
 
-def _read_excel(file_obj) -> pd.DataFrame:
-    return pd.read_excel(file_obj)
+def _read_excel(file_obj, header: int | None = 0) -> pd.DataFrame:
+    return pd.read_excel(file_obj, header=header)
 
-def _read_file(file_path) -> pd.DataFrame:
+def _read_file(file_path, header: int | None = 0) -> pd.DataFrame:
     if str(file_path).lower().endswith(".csv"):
-        return _read_csv(file_path)
+        return _read_csv(file_path, header=header)
     elif str(file_path).lower().endswith(".xlsx"):
-        return _read_excel(file_path)
+        return _read_excel(file_path, header=header)
     else:
         raise ValueError(f"Unsupported file type: {file_path}")
 
@@ -432,16 +432,16 @@ def load_store_products(files: list) -> pd.DataFrame:
     frames = []
     for f in files:
         try:
-            raw_df = _read_file(f)
-            # إذا لم يتم العثور على رأس، افترض الترتيب القياسي للملفات التي لا تحتوي على رأس
+            # قراءة الملف بدون رأس (header) أولاً
+            raw_df = _read_file(f, header=None)
+            # تعيين أسماء الأعمدة المتوقعة يدوياً
             # الترتيب المتوقع: [ID, Product Name, Image URL, Price, ...]
             if len(raw_df.columns) >= 3:
                 frame = pd.DataFrame()
-                frame["product_name"] = raw_df.iloc[:, 1].fillna("").astype(str) # العمود الثاني (فهرس 1) هو اسم المنتج
-                frame["image_url"] = raw_df.iloc[:, 2].apply(lambda x: str(x).split(",")[0].strip() if pd.notna(x) else "") # العمود الثالث (فهرس 2) هو رابط الصورة
-                # لا نحتاج إلى السعر أو ID حالياً للمحرك، فقط الاسم والصورة
+                frame["product_name"] = raw_df.iloc[:, 1].fillna("").astype(str)  # العمود الثاني (فهرس 1) هو اسم المنتج
+                frame["image_url"] = raw_df.iloc[:, 2].apply(lambda x: str(x).split(",")[0].strip() if pd.notna(x) else "")  # العمود الثالث (فهرس 2) هو رابط الصورة
             else:
-                log.warning(f"الملف {getattr(f, 'name', str(f))} لا يحتوي على عدد كافٍ من الأعمدة المتوقعة.")
+                log.warning(f"الملف {getattr(f, 'name', str(f))} لا يحتوي على عدد كافٍ من الأعمدة المتوقعة (يتطلب 3 على الأقل).")
                 continue
             frames.append(frame[frame["product_name"].str.strip() != ""])
         except Exception as e: log.error(f"load_store: {e}")
