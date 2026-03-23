@@ -1,0 +1,19 @@
+# ملفات البيانات — لا تُرفع على GitHub (خصوصية)
+input/store/*.csv
+input/competitors/*.csv
+input/brands/*.csv
+output/*.csv
+output/*.xlsx
+
+# ملفات Python المؤقتة
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+dist/
+build/
+
+# ملفات النظام
+.DS_Store
+Thumbs.db

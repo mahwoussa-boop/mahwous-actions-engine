@@ -1,0 +1,76 @@
+name: 🔬 محرك مهووس للحسم v9.0
+
+on:
+  # ✅ تشغيل يدوي بضغطة زر واحدة من واجهة GitHub
+  workflow_dispatch:
+    inputs:
+      use_llm:
+        description: 'تفعيل الذكاء الاصطناعي (Gemini) للمنطقة الرمادية؟'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+  # ✅ تشغيل تلقائي يومي الساعة 3 صباحاً بتوقيت السعودية (00:00 UTC)
+  schedule:
+    - cron: '0 0 * * *'
+
+  # ✅ تشغيل تلقائي عند رفع ملفات جديدة في مجلد input
+  push:
+    paths:
+      - 'input/store/**'
+      - 'input/competitors/**'
+      - 'input/brands/**'
+
+jobs:
+  run-mahwous-engine:
+    name: تشغيل محرك مهووس الهجين
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── الخطوة 1: سحب الكود ─────────────────────────────────────────────
+      - name: 📥 سحب الكود من المستودع
+        uses: actions/checkout@v4
+
+      # ── الخطوة 2: تثبيت Python ──────────────────────────────────────────
+      - name: 🐍 إعداد Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── الخطوة 3: تثبيت المكتبات ────────────────────────────────────────
+      - name: 📦 تثبيت المكتبات المطلوبة
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── الخطوة 4: تشغيل المحرك ──────────────────────────────────────────
+      - name: 🚀 تشغيل محرك مهووس الهجين
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          USE_LLM: ${{ github.event.inputs.use_llm || 'true' }}
+        run: |
+          python run_engine.py
+
+      # ── الخطوة 5: رفع النتائج كـ Artifacts ─────────────────────────────
+      - name: 📤 رفع النتائج (متاحة للتحميل لمدة 30 يوم)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mahwous-results-${{ github.run_number }}-${{ github.run_attempt }}
+          path: output/
+          retention-days: 30
+
+      # ── الخطوة 6: ملخص النتائج في واجهة GitHub ──────────────────────────
+      - name: 📊 عرض ملخص النتائج
+        if: always()
+        run: |
+          if [ -f output/summary.txt ]; then
+            echo "## 📊 نتائج محرك مهووس v9.0" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat output/summary.txt >> $GITHUB_STEP_SUMMARY
+          fi
